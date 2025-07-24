@@ -4,6 +4,7 @@ import ScreenCaptureKit
 import QuartzCore
 
 @main
+@MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
     
     var statusItem: NSStatusItem!
