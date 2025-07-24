@@ -248,7 +248,8 @@ class DockPreviewManager {
     private var previewWindows: [PreviewWindow] = []
     private var lastMouseLocation: NSPoint = .zero
     private var screenRecorder: ScreenRecorder?
-    
+
+    @MainActor
     init() {
         if #available(macOS 12.3, *) {
             screenRecorder = ScreenRecorder()
@@ -464,9 +465,10 @@ class PreviewWindow: NSWindow {
         
         if #available(macOS 12.3, *), let recorder = screenRecorder {
             Task { @MainActor [weak self] in
-                let image = await recorder.captureWindow(for: app)
+                guard let self = self else { return }
+                let image = await recorder.captureWindow(for: self.app)
                 if let image = image {
-                    self?.imageView.image = image
+                    self.imageView.image = image
                 }
             }
         }
