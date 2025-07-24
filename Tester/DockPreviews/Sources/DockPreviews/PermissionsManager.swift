@@ -12,7 +12,10 @@ class PermissionsManager {
     }
 
     static func permissionsStatus() -> [String: Bool] {
-        let accessibilityGranted = AXIsProcessTrusted()
+        // Use AXIsProcessTrustedWithOptions with the prompt option disabled to
+        // avoid showing any permission dialogs when simply checking status.
+        let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeRetainedValue() as String: false]
+        let accessibilityGranted = AXIsProcessTrustedWithOptions(options)
         let screenRecordingGranted: Bool
         if #available(macOS 10.15, *) {
             screenRecordingGranted = CGPreflightScreenCaptureAccess()

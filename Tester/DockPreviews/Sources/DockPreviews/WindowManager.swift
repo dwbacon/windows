@@ -4,6 +4,14 @@ import AppKit
 
 class WindowManager {
     func getOpenWindows(for appName: String) -> [NSImage] {
+        // Avoid triggering the system Screen Recording prompt automatically.
+        if #available(macOS 10.15, *) {
+            guard CGPreflightScreenCaptureAccess() else {
+                print("WindowManager: Screen Recording permission not granted.")
+                return []
+            }
+        }
+
         let options = CGWindowListOption(arrayLiteral: .excludeDesktopElements, .optionOnScreenOnly)
         let windowListInfo = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as! [[String: AnyObject]]
 
