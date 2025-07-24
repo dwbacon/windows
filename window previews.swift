@@ -463,12 +463,10 @@ class PreviewWindow: NSWindow {
         setPlaceholderImage()
         
         if #available(macOS 12.3, *), let recorder = screenRecorder {
-            Task {
+            Task { @MainActor [weak self] in
                 let image = await recorder.captureWindow(for: app)
-                DispatchQueue.main.async { [weak self] in
-                    if let image = image {
-                        self?.imageView.image = image
-                    }
+                if let image = image {
+                    self?.imageView.image = image
                 }
             }
         }
@@ -506,8 +504,9 @@ class PreviewWindow: NSWindow {
 
 // MARK: - Screen Recorder
 @available(macOS 12.3, *)
+@MainActor
 class ScreenRecorder: Sendable {
-    
+
     func captureWindow(for app: AppInfo) async -> NSImage? {
         do {
             let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
