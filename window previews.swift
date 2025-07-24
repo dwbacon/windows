@@ -243,6 +243,7 @@ class SettingsWindowController: NSWindowController {
 }
 
 // MARK: - Preview Manager
+@MainActor
 class DockPreviewManager {
     private var mouseTracker: Any?
     private var previewWindows: [PreviewWindow] = []
