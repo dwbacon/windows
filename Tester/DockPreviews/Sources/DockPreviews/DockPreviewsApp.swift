@@ -23,8 +23,8 @@ struct DockPreviewsApp: App {
     }
 
     init() {
-        // Check permissions on app launch
-        let permissionsGranted = PermissionsManager.checkAndRequestPermissions()
+        // Only check permission status on launch without prompting the user
+        let permissionsGranted = PermissionsManager.checkPermissions()
         if permissionsGranted {
             self.dockMonitor = DockMonitor()
         } else {
