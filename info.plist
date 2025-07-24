@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>wagawaga.Window-Previews</string>
+    <key>CFBundleName</key>
+    <string>Window Previews</string>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
+    <key>LSUIElement</key>
+    <false/>
+    <key>NSScreenCaptureDescription</key>
+    <string>This app needs screen recording permission to capture window previews for the dock.</string>
+    <key>NSAccessibilityUsageDescription</key>
+    <string>This app needs accessibility permission to detect dock interactions and app windows.</string>
+</dict>
+</plist>
