@@ -243,6 +243,7 @@ class SettingsWindowController: NSWindowController {
 }
 
 // MARK: - Preview Manager
+@MainActor
 class DockPreviewManager {
     private var mouseTracker: Any?
     private var previewWindows: [PreviewWindow] = []
@@ -464,9 +465,10 @@ class PreviewWindow: NSWindow {
         
         if #available(macOS 12.3, *), let recorder = screenRecorder {
             Task { @MainActor [weak self] in
-                let image = await recorder.captureWindow(for: app)
+                guard let self = self else { return }
+                let image = await recorder.captureWindow(for: self.app)
                 if let image = image {
-                    self?.imageView.image = image
+                    self.imageView.image = image
                 }
             }
         }
