@@ -4,12 +4,11 @@ import AppKit
 import CoreGraphics
 
 class PermissionsManager {
-    static func checkAndRequestPermissions() -> Bool {
+    /// Checks the current permission status without prompting the user.
+    static func checkPermissions() -> Bool {
         let status = permissionsStatus()
         print("Current Permissions Status: \(status)")
-        let accessibilityGranted = checkAccessibilityPermissions()
-        checkScreenRecordingPermissions()
-        return accessibilityGranted
+        return status["Accessibility"] ?? false
     }
 
     static func permissionsStatus() -> [String: Bool] {
@@ -27,32 +26,23 @@ class PermissionsManager {
     }
 
     static func manuallyRequestPermissions() {
+        requestAccessibilityPermission()
+        requestScreenRecordingPermission()
+    }
+
+    static func requestAccessibilityPermission() {
         openAccessibilitySettings()
+    }
+
+    static func requestScreenRecordingPermission() {
+        if #available(macOS 10.15, *) {
+            CGRequestScreenCaptureAccess()
+        }
         openScreenRecordingSettings()
     }
 
-    private static func checkAccessibilityPermissions() -> Bool {
-        let accessEnabled = AXIsProcessTrusted()
-
-        if !accessEnabled {
-            print("Accessibility access NOT granted. Please go to System Settings -> Privacy & Security -> Accessibility and ensure 'DockPreviews' (or 'Xcode' if running from there) is checked.")
-            openAccessibilitySettings()
-        } else {
-            print("Accessibility access GRANTED.")
-        }
-        return accessEnabled
-    }
-
-    private static func checkScreenRecordingPermissions() {
-        if #available(macOS 10.15, *) {
-            if !CGPreflightScreenCaptureAccess() {
-                print("Screen Recording access NOT granted. Requesting access...")
-                CGRequestScreenCaptureAccess()
-            } else {
-                print("Screen Recording access GRANTED.")
-            }
-        }
-    }
+    // These methods are kept private as helpers for opening the relevant
+    // System Settings panes.
 
     private static func openAccessibilitySettings() {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
