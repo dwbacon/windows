@@ -14,10 +14,16 @@ struct WindowInfo {
 class WindowCapture {
 
     static func captureWindow(windowId: CGWindowID) async -> NSImage? {
+        // Prefer the more reliable CGWindowList capture API
+        if let image = captureWindowCG(windowId: windowId) {
+            return image
+        }
+
+        // Fallback to ScreenCaptureKit if CGWindowList fails
         do {
             let content = try await SCShareableContent.current
             guard let window = content.windows.first(where: { $0.windowID == windowId }) else {
-                log("Error: Window with ID \(windowId) not found in shareable content.")
+                log("Error: Window with ID \(windowId) not found in shareable content during fallback.")
                 return nil
             }
 
@@ -28,40 +34,55 @@ class WindowCapture {
             config.showsCursor = false
 
             let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
-            log("Successfully captured window \(windowId) with ScreenCaptureKit.")
+            log("Successfully captured window \(windowId) with ScreenCaptureKit fallback")
             return NSImage(cgImage: image, size: .zero)
 
         } catch {
-            log("Error capturing window with ScreenCaptureKit: \(error.localizedDescription)")
+            log("Error capturing window with ScreenCaptureKit fallback: \(error.localizedDescription)")
             return nil
         }
     }
 
+    private static func captureWindowCG(windowId: CGWindowID) -> NSImage? {
+        let image = CGWindowListCreateImage(.null, .optionIncludingWindow, windowId, [.boundsIgnoreFraming, .bestResolution])
+        if let cgImg = image {
+            log("Successfully captured window \(windowId) with CGWindowListCreateImage")
+            return NSImage(cgImage: cgImg, size: .zero)
+        }
+        log("Failed to capture window \(windowId) with CGWindowListCreateImage")
+        return nil
+    }
+
     static func getApplicationWindows(for app: NSRunningApplication) async -> [WindowInfo] {
-        guard let appName = app.localizedName else { 
+        guard let appName = app.localizedName else {
             log("❌ No app name for PID \(app.processIdentifier)")
-            return [] 
+            return []
         }
         let pid = app.processIdentifier
 
+        // Use the CGWindowList API first as it's more reliable
+        let cgWindows = getApplicationWindowsCG(for: app)
+        if !cgWindows.isEmpty {
+            return cgWindows
+        }
+
+        // Fallback to ScreenCaptureKit window enumeration
         do {
             let content = try await SCShareableContent.current
-            log("🔍 WindowCapture: Found \(content.windows.count) total windows")
-            log("🎯 WindowCapture: Looking for \(appName) with PID \(pid)")
-            
-            // Filter windows that belong EXACTLY to this PID and pass the include criteria
+            log("🔍 WindowCapture fallback: Found \(content.windows.count) total windows")
+            log("🎯 WindowCapture fallback: Looking for \(appName) with PID \(pid)")
+
             let windowInfos = content.windows.compactMap { window -> WindowInfo? in
                 let windowPID = window.owningApplication?.processID ?? -1
-                guard windowPID == pid else { return nil } // Ensure it belongs to the app
+                guard windowPID == pid else { return nil }
 
-                // Use the new filtering function
                 guard shouldIncludeWindow(window, forApp: app) else { return nil }
 
                 let windowTitle = window.title ?? ""
                 let windowID = window.windowID
                 let windowFrame = window.frame
-                
-                log("✅ ACCEPTED: '\(windowTitle)' (ID:\(windowID), \(Int(windowFrame.width))x\(Int(windowFrame.height))) from \(appName)")
+
+                log("✅ ACCEPTED fallback: '\(windowTitle)' (ID:\(windowID), \(Int(windowFrame.width))x\(Int(windowFrame.height))) from \(appName)")
 
                 return WindowInfo(
                     windowId: windowID,
@@ -71,21 +92,37 @@ class WindowCapture {
                     appPID: Int(pid)
                 )
             }
-            
+
             let sortedWindows = windowInfos.sorted { $0.frame.width * $0.frame.height > $1.frame.width * $1.frame.height }
-            log("📊 WindowCapture: Final result for \(appName): \(sortedWindows.count) windows selected")
-            
-            // Show which windows we're actually returning
-            for (index, windowInfo) in sortedWindows.enumerated() {
-                log("🎯 Returning window \(index): ID=\(windowInfo.windowId), Title='\(windowInfo.title)'")
-            }
-            
             return sortedWindows
 
         } catch {
-            log("❌ Error getting shareable content: \(error.localizedDescription)")
+            log("❌ Error getting shareable content fallback: \(error.localizedDescription)")
             return []
         }
+    }
+
+    private static func getApplicationWindowsCG(for app: NSRunningApplication) -> [WindowInfo] {
+        guard let appName = app.localizedName else { return [] }
+        let pid = app.processIdentifier
+
+        guard let infoList = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else {
+            return []
+        }
+
+        var result: [WindowInfo] = []
+        for info in infoList {
+            let ownerPID = info[kCGWindowOwnerPID as String] as? pid_t ?? 0
+            if ownerPID != pid { continue }
+
+            let windowID = info[kCGWindowNumber as String] as? CGWindowID ?? 0
+            let boundsDict = info[kCGWindowBounds as String] as? [String: Any] ?? [:]
+            let frame = CGRect(dictionaryRepresentation: boundsDict as CFDictionary) ?? .zero
+            let title = info[kCGWindowName as String] as? String ?? ""
+
+            result.append(WindowInfo(windowId: windowID, title: title, frame: frame, appName: appName, appPID: Int(pid)))
+        }
+        return result.sorted { $0.frame.width * $0.frame.height > $1.frame.width * $1.frame.height }
     }
 
     private static func shouldIncludeWindow(_ window: SCWindow, forApp app: NSRunningApplication) -> Bool {

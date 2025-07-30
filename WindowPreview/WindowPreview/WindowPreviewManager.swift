@@ -11,6 +11,11 @@ class WindowPreviewManager: NSObject, DockHoverDetectorDelegate {
 
     func dockIconHovered(for app: NSRunningApplication) {
         log("Dock icon hovered for: \(app.localizedName ?? "Unknown App")")
+        guard !app.isTerminated else {
+            log("App \(app.localizedName ?? "Unknown") is not running; skipping preview")
+            hideAllPreviews()
+            return
+        }
         hideAllPreviews()
 
         Task {
