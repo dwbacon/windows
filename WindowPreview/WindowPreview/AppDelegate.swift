@@ -182,7 +182,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         info += "================================\n"
         info += "DEBUG LOG:\n"
-        let logPath = NSHomeDirectory() + "/Desktop/WindowPreview/debug.log"
+        // Match the path used by Logger.swift
+        let logPath = NSHomeDirectory() + "/Desktop/WindowPreview/logs/debug.log"
         if FileManager.default.fileExists(atPath: logPath) {
             do {
                 let logContent = try String(contentsOfFile: logPath)
@@ -244,9 +245,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     private func isScreenRecordingEnabled() -> Bool {
-        if #available(macOS 10.15, *) {
-            let stream = CGDisplayStream(dispatchQueueDisplay: CGMainDisplayID(), outputWidth: 1, outputHeight: 1, pixelFormat: 1, properties: nil, queue: .main) { _, _, _, _ in }
-            return stream != nil
+        guard #available(macOS 10.15, *) else { return false }
+
+        // Check using CGWindowList to avoid unreliable CGDisplayStream checks
+        if let windowList = CGWindowListCopyWindowInfo(.optionAll, kCGNullWindowID) as? [[String: Any]] {
+            for window in windowList {
+                if let name = window[kCGWindowName as String] as? String, !name.isEmpty {
+                    return true
+                }
+            }
         }
         return false
     }

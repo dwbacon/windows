@@ -42,9 +42,14 @@ struct SettingsView: View {
     }
     
     private func isScreenRecordingEnabled() -> Bool {
-        if #available(macOS 10.15, *) {
-            let stream = CGDisplayStream(dispatchQueueDisplay: CGMainDisplayID(), outputWidth: 1, outputHeight: 1, pixelFormat: 1, properties: nil, queue: .main) { _, _, _, _ in }
-            return stream != nil
+        guard #available(macOS 10.15, *) else { return false }
+
+        if let windowList = CGWindowListCopyWindowInfo(.optionAll, kCGNullWindowID) as? [[String: Any]] {
+            for window in windowList {
+                if let name = window[kCGWindowName as String] as? String, !name.isEmpty {
+                    return true
+                }
+            }
         }
         return false
     }
